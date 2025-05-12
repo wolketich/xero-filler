@@ -12,3 +12,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   return true;
 });
+
+// Listen for installation
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Xero Budget Manager extension installed');
+});
+
+// Keep service worker alive if needed
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "keepAlive") {
+    sendResponse({success: true});
+  }
+  return true;
+});

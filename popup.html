@@ -25,7 +25,8 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    .form-group select {
+    .form-group select, 
+    .form-group input {
       width: 100%;
       padding: 8px;
       box-sizing: border-box;
@@ -45,6 +46,12 @@
     }
     .btn:hover {
       background-color: #0056b3;
+    }
+    .btn-save {
+      background-color: #28a745;
+    }
+    .btn-save:hover {
+      background-color: #218838;
     }
     .status-message {
       margin-top: 10px;
@@ -77,17 +84,28 @@
     .result-item {
       padding: 8px 0;
       border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
     }
     .result-item:last-child {
       border-bottom: none;
     }
     .result-label {
       font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
     }
-    .result-value {
-      color: #28a745;
+    .actions {
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .actions .btn {
+      width: 48%;
+    }
+    .version-info {
+      font-size: 10px;
+      color: #999;
+      text-align: center;
+      margin-top: 15px;
     }
   </style>
 </head>
@@ -116,20 +134,30 @@
     <h2 style="margin-top: 0;">Income Results</h2>
     <div class="result-item">
       <span class="result-label">Branch:</span>
-      <span id="resultBranch" class="result-value">-</span>
+      <span id="resultBranch"></span>
     </div>
     <div class="result-item">
       <span class="result-label">Month:</span>
-      <span id="resultMonth" class="result-value">-</span>
+      <span id="resultMonth"></span>
     </div>
     <div class="result-item">
-      <span class="result-label">Fee Income:</span>
-      <span id="resultFee" class="result-value">-</span>
+      <label class="result-label" for="feeIncomeInput">Fee Income:</label>
+      <input type="text" id="feeIncomeInput" placeholder="Enter fee income">
     </div>
     <div class="result-item">
-      <span class="result-label">Funding Income:</span>
-      <span id="resultFunding" class="result-value">-</span>
+      <label class="result-label" for="fundingIncomeInput">Funding Income:</label>
+      <input type="text" id="fundingIncomeInput" placeholder="Enter funding income">
     </div>
+    
+    <div class="actions">
+      <button id="refreshBtn" class="btn">Refresh</button>
+      <button id="saveBtn" class="btn btn-save">Save Changes</button>
+    </div>
+  </div>
+  
+  <div class="version-info">
+    Created by: wolketich<br>
+    Last updated: 2025-05-12 10:59:53
   </div>
 
   <script src="popup.js"></script>

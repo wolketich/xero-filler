@@ -8,14 +8,23 @@ document.addEventListener('DOMContentLoaded', function() {
   const resultContainer = document.getElementById('resultContainer');
   const resultBranch = document.getElementById('resultBranch');
   const resultMonth = document.getElementById('resultMonth');
-  const resultFee = document.getElementById('resultFee');
-  const resultFunding = document.getElementById('resultFunding');
+  const feeIncomeInput = document.getElementById('feeIncomeInput');
+  const fundingIncomeInput = document.getElementById('fundingIncomeInput');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const saveBtn = document.getElementById('saveBtn');
   
   // Show status message
   function showStatus(message, type) {
     statusMessage.textContent = message;
     statusMessage.className = `status-message ${type}`;
     statusMessage.style.display = 'block';
+    
+    // Auto-hide success messages after 3 seconds
+    if (type === 'success') {
+      setTimeout(() => {
+        statusMessage.style.display = 'none';
+      }, 3000);
+    }
   }
   
   // Load fields from the active Xero page
@@ -118,8 +127,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Handle submit button
+  // Handle submit button - Get income data
   submitBtn.addEventListener('click', function() {
+    fetchIncomeData();
+  });
+  
+  // Handle refresh button - Refresh income data
+  refreshBtn.addEventListener('click', function() {
+    fetchIncomeData();
+  });
+  
+  // Function to fetch income data
+  function fetchIncomeData() {
     const selectedBranch = branchSelect.value;
     const selectedMonth = monthSelect.value;
     
@@ -184,36 +203,56 @@ document.addEventListener('DOMContentLoaded', function() {
                           // Wait a bit more to ensure all elements are rendered
                           setTimeout(() => {
                             try {
-                              // First, let's examine the page structure
-                              console.log("Analyzing page structure...");
+                              // Find table cells for fee income and funding income
+                              const feeRow = findRowByLabel("Fee income (0110)");
+                              const fundingRow = findRowByLabel("Funding income (0120)");
                               
-                              // Find all month headers to determine column index
-                              const headerCells = document.querySelectorAll(".x-grid3-hd-inner");
-                              const columnIndex = Array.from(headerCells).findIndex(cell => cell.textContent.trim() === month);
-                              
-                              if (columnIndex === -1) {
-                                console.error(`Month column not found: ${month}`);
-                                reject(`Month column not found: ${month}`);
+                              if (!feeRow) {
+                                reject("Fee income row not found");
                                 return;
                               }
                               
-                              console.log(`Found month ${month} at column index: ${columnIndex}`);
+                              if (!fundingRow) {
+                                reject("Funding income row not found");
+                                return;
+                              }
                               
-                              // Get values using direct DOM traversal approach
-                              const feeIncome = getValueForIncomeType("Fee income (0110)", month, columnIndex);
-                              const fundingIncome = getValueForIncomeType("Funding income (0120)", month, columnIndex);
+                              // Find month cells
+                              const feeMonthCell = findMonthCellInRow(feeRow, month);
+                              const fundingMonthCell = findMonthCellInRow(fundingRow, month);
                               
-                              // Return results
+                              if (!feeMonthCell) {
+                                reject(`Month cell for Fee Income (${month}) not found`);
+                                return;
+                              }
+                              
+                              if (!fundingMonthCell) {
+                                reject(`Month cell for Funding Income (${month}) not found`);
+                                return;
+                              }
+                              
+                              // Get current values
+                              const feeInput = feeMonthCell.querySelector('input');
+                              const fundingInput = fundingMonthCell.querySelector('input');
+                              
+                              const feeValue = feeInput ? feeInput.value : 
+                                feeMonthCell.querySelector('.x-grid3-cell-inner').textContent.trim();
+                              
+                              const fundingValue = fundingInput ? fundingInput.value : 
+                                fundingMonthCell.querySelector('.x-grid3-cell-inner').textContent.trim();
+                              
+                              // Return results with input references (for future editing)
                               resolve({
                                 success: true,
-                                feeIncome: feeIncome,
-                                fundingIncome: fundingIncome
+                                feeIncome: feeValue,
+                                fundingIncome: fundingValue,
+                                canEdit: !!(feeInput && fundingInput)
                               });
                             } catch (error) {
                               console.error("Error getting values:", error);
                               reject(`Error getting values: ${error.message}`);
                             }
-                          }, 1000); // Extra delay to ensure table is fully loaded
+                          }, 1000);
                         } catch (error) {
                           console.error("Error extracting data:", error);
                           reject(`Error extracting data: ${error.message}`);
@@ -234,123 +273,54 @@ document.addEventListener('DOMContentLoaded', function() {
               });
             }
             
-            // Get value for a specific income type and month using column index
-            function getValueForIncomeType(incomeType, month, columnIndex) {
-              try {
-                // First, get all rows in the grid
-                const rowsWithLabels = document.querySelectorAll(".x-grid3-row");
-                console.log(`Found ${rowsWithLabels.length} rows in grid`);
-                
-                // Find row index with matching income type
-                let rowIndex = -1;
-                let i = 0;
-                
-                for (const row of rowsWithLabels) {
-                  const labelCell = row.querySelector(".x-grid3-cell-inner");
-                  if (labelCell && labelCell.textContent.trim() === incomeType) {
-                    rowIndex = i;
-                    console.log(`Found "${incomeType}" at row index: ${rowIndex}`);
-                    break;
-                  }
-                  i++;
+            // Helper function to find a row by its label text
+            function findRowByLabel(label) {
+              const allLabelCells = document.querySelectorAll(".x-grid3-cell-inner");
+              for (const cell of allLabelCells) {
+                if (cell.textContent.trim() === label) {
+                  // Go up to find the row
+                  return cell.closest(".x-grid3-row");
                 }
-                
-                if (rowIndex === -1) {
-                  console.error(`Row not found for income type: ${incomeType}`);
-                  return `Error: Row not found for income type: ${incomeType}`;
-                }
-                
-                // Method 1: Try direct selector using month ID attribute
-                console.log(`Looking for direct cell with id or class for ${month}...`);
-                const directCell = document.querySelector(
-                  `.x-grid3-row:nth-child(${rowIndex + 1}) [id="${month}"], ` +
-                  `.x-grid3-row:nth-child(${rowIndex + 1}) .x-grid3-td-${month}`
-                );
-                
-                if (directCell) {
-                  console.log("Found cell by direct selector");
-                  const input = directCell.querySelector('input');
-                  
-                  if (input) {
-                    return input.value;
-                  } else {
-                    const innerCell = directCell.querySelector('.x-grid3-cell-inner');
-                    return innerCell ? innerCell.textContent.trim() : "N/A";
-                  }
-                }
-                
-                // Method 2: Use debugging to find the value (more flexible approach)
-                console.log("Direct selector failed. Using detailed search...");
-                console.log(`Getting value for ${incomeType} (${month}) - Row ${rowIndex}, Column ${columnIndex}`);
-                
-                // Debug the specific row
-                const targetRow = rowsWithLabels[rowIndex];
-                console.log("Target row HTML:", targetRow.outerHTML);
-                
-                // Look for any month cell in the row
-                const allMonthCells = Array.from(targetRow.querySelectorAll('td'))
-                  .filter(td => td.id && td.id.match(/[A-Za-z]+-\d+/));
-                  
-                console.log(`Found ${allMonthCells.length} month cells in this row`);
-                allMonthCells.forEach((cell, idx) => {
-                  console.log(`Month cell ${idx}: id=${cell.id}, class=${cell.className}`);
-                });
-                
-                // Find the scrollable grid section that contains month values
-                const scrollableGrids = document.querySelectorAll('.x-grid3-body:not(.x-grid3-locked)');
-                console.log(`Found ${scrollableGrids.length} scrollable grid sections`);
-                
-                if (scrollableGrids.length > 0) {
-                  const scrollableRows = scrollableGrids[0].querySelectorAll('.x-grid3-row');
-                  console.log(`Found ${scrollableRows.length} rows in scrollable section`);
-                  
-                  if (rowIndex < scrollableRows.length) {
-                    const scrollableRow = scrollableRows[rowIndex];
-                    console.log("Scrollable row HTML:", scrollableRow.outerHTML);
-                    
-                    // Get all cells in this scrollable row
-                    const cells = scrollableRow.querySelectorAll('td');
-                    console.log(`Found ${cells.length} cells in scrollable row`);
-                    
-                    // Try to find the cell with the month ID
-                    const monthCell = Array.from(cells).find(c => c.id === month || c.className.includes(`x-grid3-td-${month}`));
-                    
-                    if (monthCell) {
-                      console.log("Found month cell by ID or class:", monthCell.outerHTML);
-                      const input = monthCell.querySelector('input');
-                      
-                      if (input) {
-                        return input.value;
-                      } else {
-                        const innerCell = monthCell.querySelector('.x-grid3-cell-inner');
-                        return innerCell ? innerCell.textContent.trim() : "N/A";
-                      }
-                    } else if (columnIndex < cells.length) {
-                      // Fall back to using column index
-                      const cell = cells[columnIndex];
-                      console.log(`Using column index (${columnIndex}) to find cell:`, cell.outerHTML);
-                      
-                      const input = cell.querySelector('input');
-                      if (input) {
-                        return input.value;
-                      } else {
-                        const innerCell = cell.querySelector('.x-grid3-cell-inner');
-                        return innerCell ? innerCell.textContent.trim() : "N/A";
-                      }
-                    } else {
-                      return `Error: Column index ${columnIndex} out of range (cells: ${cells.length})`;
-                    }
-                  } else {
-                    return `Error: Row index ${rowIndex} out of range (rows: ${scrollableRows.length})`;
-                  }
-                } else {
-                  return "Error: Scrollable grid section not found";
-                }
-                
-              } catch (error) {
-                console.error(`Error getting value for ${incomeType} (${month}):`, error);
-                return `Error: ${error.message}`;
               }
+              return null;
+            }
+            
+            // Helper function to find a month cell in a row
+            function findMonthCellInRow(row, month) {
+              // Method 1: Try direct selector by ID
+              let cell = row.querySelector(`[id="${month}"]`);
+              if (cell) return cell;
+              
+              // Method 2: Try by class
+              cell = row.querySelector(`.x-grid3-td-${month}`);
+              if (cell) return cell;
+              
+              // Method 3: If the row is in the locked section, we need to find the corresponding row in the scrollable section
+              if (row.closest('.x-grid3-locked')) {
+                const rowIndex = Array.from(row.parentElement.children).indexOf(row);
+                const scrollableRow = document.querySelector(`.x-grid3-body:not(.x-grid3-locked) .x-grid3-row:nth-child(${rowIndex + 1})`);
+                
+                if (scrollableRow) {
+                  cell = scrollableRow.querySelector(`[id="${month}"]`);
+                  if (cell) return cell;
+                  
+                  cell = scrollableRow.querySelector(`.x-grid3-td-${month}`);
+                  if (cell) return cell;
+                  
+                  // Method 4: Find the cell by column index
+                  const headers = document.querySelectorAll(".x-grid3-header:not(.x-grid3-locked) .x-grid3-hd-inner");
+                  const columnIndex = Array.from(headers).findIndex(h => h.textContent.trim() === month);
+                  
+                  if (columnIndex !== -1) {
+                    const cells = scrollableRow.querySelectorAll('td');
+                    if (columnIndex < cells.length) {
+                      return cells[columnIndex];
+                    }
+                  }
+                }
+              }
+              
+              return null;
             }
             
             // Wait for the loading indicator to disappear
@@ -391,8 +361,23 @@ document.addEventListener('DOMContentLoaded', function() {
               // Update result display
               resultBranch.textContent = selectedBranch;
               resultMonth.textContent = selectedMonth;
-              resultFee.textContent = data.feeIncome;
-              resultFunding.textContent = data.fundingIncome;
+              feeIncomeInput.value = data.feeIncome;
+              fundingIncomeInput.value = data.fundingIncome;
+              
+              // Enable or disable editing based on cell type
+              saveBtn.disabled = !data.canEdit;
+              if (!data.canEdit) {
+                feeIncomeInput.readOnly = true;
+                fundingIncomeInput.readOnly = true;
+                feeIncomeInput.style.backgroundColor = '#f5f5f5';
+                fundingIncomeInput.style.backgroundColor = '#f5f5f5';
+                showStatus('This month is not editable in Xero', 'loading');
+              } else {
+                feeIncomeInput.readOnly = false;
+                fundingIncomeInput.readOnly = false;
+                feeIncomeInput.style.backgroundColor = '';
+                fundingIncomeInput.style.backgroundColor = '';
+              }
               
               // Show results
               resultContainer.style.display = 'block';
@@ -410,5 +395,199 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       showStatus('Please select both a branch and a month.', 'error');
     }
+  }
+  
+  // Handle save button - Save edited values back to Xero
+  saveBtn.addEventListener('click', function() {
+    const selectedBranch = resultBranch.textContent;
+    const selectedMonth = resultMonth.textContent;
+    const newFeeIncome = feeIncomeInput.value;
+    const newFundingIncome = fundingIncomeInput.value;
+    
+    if (!selectedBranch || !selectedMonth) {
+      showStatus('Missing branch or month information', 'error');
+      return;
+    }
+    
+    if (!newFeeIncome || !newFundingIncome) {
+      showStatus('Please enter values for both fee income and funding income', 'error');
+      return;
+    }
+    
+    showStatus(`Saving changes to Xero...`, 'loading');
+    
+    // Send the values back to Xero
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        function: async (branch, month, feeIncome, fundingIncome) => {
+          // This function will be injected into the page and executed there
+          try {
+            // Save the edited values
+            const result = await saveIncomeData(branch, month, feeIncome, fundingIncome);
+            return result;
+          } catch (error) {
+            return {
+              success: false,
+              error: error.message
+            };
+          }
+          
+          // Function to save income data back to Xero
+          async function saveIncomeData(branch, month, feeIncome, fundingIncome) {
+            return new Promise((resolve, reject) => {
+              try {
+                // Make sure we have the right branch loaded
+                const currentBranchText = document.querySelector('#Budgets_value').value;
+                
+                if (currentBranchText !== branch) {
+                  reject(`Current branch (${currentBranchText}) doesn't match selected branch (${branch}). Please reload data.`);
+                  return;
+                }
+                
+                // Find table cells for fee income and funding income
+                const feeRow = findRowByLabel("Fee income (0110)");
+                const fundingRow = findRowByLabel("Funding income (0120)");
+                
+                if (!feeRow) {
+                  reject("Fee income row not found");
+                  return;
+                }
+                
+                if (!fundingRow) {
+                  reject("Funding income row not found");
+                  return;
+                }
+                
+                // Find month cells
+                const feeMonthCell = findMonthCellInRow(feeRow, month);
+                const fundingMonthCell = findMonthCellInRow(fundingRow, month);
+                
+                if (!feeMonthCell) {
+                  reject(`Month cell for Fee Income (${month}) not found`);
+                  return;
+                }
+                
+                if (!fundingMonthCell) {
+                  reject(`Month cell for Funding Income (${month}) not found`);
+                  return;
+                }
+                
+                // Get input elements
+                const feeInput = feeMonthCell.querySelector('input');
+                const fundingInput = fundingMonthCell.querySelector('input');
+                
+                if (!feeInput) {
+                  reject("Fee income input not found (month may not be editable)");
+                  return;
+                }
+                
+                if (!fundingInput) {
+                  reject("Funding income input not found (month may not be editable)");
+                  return;
+                }
+                
+                // Set new values
+                const oldFeeValue = feeInput.value;
+                const oldFundingValue = fundingInput.value;
+                
+                feeInput.value = feeIncome;
+                fundingInput.value = fundingIncome;
+                
+                // Trigger change events to ensure Xero registers the changes
+                const changeEvent = new Event('change', { bubbles: true });
+                feeInput.dispatchEvent(changeEvent);
+                fundingInput.dispatchEvent(changeEvent);
+                
+                // Trigger blur events to simulate losing focus
+                const blurEvent = new Event('blur', { bubbles: true });
+                feeInput.dispatchEvent(blurEvent);
+                fundingInput.dispatchEvent(blurEvent);
+                
+                // TODO: If Xero requires additional actions to save changes, add them here
+                
+                // Return success with old and new values for confirmation
+                resolve({
+                  success: true,
+                  oldFeeIncome: oldFeeValue,
+                  newFeeIncome: feeIncome,
+                  oldFundingIncome: oldFundingValue,
+                  newFundingIncome: fundingIncome
+                });
+                
+              } catch (error) {
+                console.error("Error saving data:", error);
+                reject(`Error saving data: ${error.message}`);
+              }
+            });
+          }
+          
+          // Helper function to find a row by its label text (same as before)
+          function findRowByLabel(label) {
+            const allLabelCells = document.querySelectorAll(".x-grid3-cell-inner");
+            for (const cell of allLabelCells) {
+              if (cell.textContent.trim() === label) {
+                return cell.closest(".x-grid3-row");
+              }
+            }
+            return null;
+          }
+          
+          // Helper function to find a month cell in a row (same as before)
+          function findMonthCellInRow(row, month) {
+            // Method 1: Try direct selector by ID
+            let cell = row.querySelector(`[id="${month}"]`);
+            if (cell) return cell;
+            
+            // Method 2: Try by class
+            cell = row.querySelector(`.x-grid3-td-${month}`);
+            if (cell) return cell;
+            
+            // Method 3: If the row is in the locked section, find the corresponding row in the scrollable section
+            if (row.closest('.x-grid3-locked')) {
+              const rowIndex = Array.from(row.parentElement.children).indexOf(row);
+              const scrollableRow = document.querySelector(`.x-grid3-body:not(.x-grid3-locked) .x-grid3-row:nth-child(${rowIndex + 1})`);
+              
+              if (scrollableRow) {
+                cell = scrollableRow.querySelector(`[id="${month}"]`);
+                if (cell) return cell;
+                
+                cell = scrollableRow.querySelector(`.x-grid3-td-${month}`);
+                if (cell) return cell;
+                
+                // Method 4: Find by column index
+                const headers = document.querySelectorAll(".x-grid3-header:not(.x-grid3-locked) .x-grid3-hd-inner");
+                const columnIndex = Array.from(headers).findIndex(h => h.textContent.trim() === month);
+                
+                if (columnIndex !== -1) {
+                  const cells = scrollableRow.querySelectorAll('td');
+                  if (columnIndex < cells.length) {
+                    return cells[columnIndex];
+                  }
+                }
+              }
+            }
+            
+            return null;
+          }
+        },
+        args: [selectedBranch, selectedMonth, newFeeIncome, newFundingIncome]
+      }).then(results => {
+        // Handle the results from the injected script
+        if (results && results[0] && results[0].result) {
+          const data = results[0].result;
+          
+          if (data.success) {
+            showStatus(`Changes saved successfully!`, 'success');
+          } else {
+            showStatus('Failed to save changes: ' + data.error, 'error');
+          }
+        } else {
+          showStatus('Failed to process results from page', 'error');
+        }
+      }).catch(error => {
+        showStatus('Error: ' + error.message, 'error');
+      });
+    });
   });
 });
