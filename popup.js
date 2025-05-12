@@ -1,24 +1,51 @@
-// Dynamically extract budget names from the dropdown menu
-function extractBudgets() {
-  const budgetSuggestions = document.querySelectorAll("#Budgets_suggestions .p");
-  return Array.from(budgetSuggestions).map((el) => el.textContent.trim());
+// Utility function to wait for an element to appear in the DOM
+function waitForElement(selector, timeout = 5000) {
+  return new Promise((resolve, reject) => {
+    const interval = 100; // Check every 100ms
+    const startTime = Date.now();
+
+    const timer = setInterval(() => {
+      const element = document.querySelector(selector);
+      if (element) {
+        clearInterval(timer);
+        resolve(element);
+      } else if (Date.now() - startTime > timeout) {
+        clearInterval(timer);
+        reject(`Timeout waiting for element: ${selector}`);
+      }
+    }, interval);
+  });
 }
 
-// Dynamically extract months from the table header
+// Open the dropdown menu to reveal all options
+function openDropdown() {
+  const dropdownToggle = document.querySelector("#Budgets_toggle");
+  if (dropdownToggle) {
+    dropdownToggle.click(); // Simulate a click to open the dropdown
+  }
+}
+
+// Extract location names from the dropdown menu
+function extractLocations() {
+  const locationElements = document.querySelectorAll("#Budgets_suggestions .p");
+  return Array.from(locationElements).map((el) => el.textContent.trim());
+}
+
+// Extract months from the table header
 function extractMonths() {
-  const monthHeaders = document.querySelectorAll(".x-grid3-header .x-grid3-hd");
-  return Array.from(monthHeaders).map((el) => el.textContent.trim());
+  const monthElements = document.querySelectorAll(".x-grid3-header .x-grid3-hd");
+  return Array.from(monthElements).map((el) => el.textContent.trim());
 }
 
 // Populate the budget list dynamically
-function populateBudgets(budgets) {
+function populateLocations(locations) {
   const budgetListDiv = document.getElementById("budgetList");
-  budgets.forEach((budget) => {
+  locations.forEach((location) => {
     const budgetItem = document.createElement("div");
     budgetItem.className = "budget-item";
-    budgetItem.textContent = budget;
+    budgetItem.textContent = location;
     budgetItem.addEventListener("click", () => {
-      alert(`You selected: ${budget}`);
+      alert(`You selected: ${location}`);
     });
     budgetListDiv.appendChild(budgetItem);
   });
@@ -36,19 +63,33 @@ function populateMonths(months) {
 }
 
 // Main function to initialize the popup
-document.addEventListener("DOMContentLoaded", () => {
-  // Extract budgets and months dynamically from the webpage
-  const budgets = extractBudgets();
-  const months = extractMonths();
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    // Wait for the dropdown toggle to appear
+    await waitForElement("#Budgets_toggle");
 
-  // Populate the popup UI with the extracted data
-  populateBudgets(budgets);
-  populateMonths(months);
+    // Open the dropdown to reveal location names
+    openDropdown();
 
-  // Handle submit button click
-  const submitBtn = document.getElementById("submitBtn");
-  submitBtn.addEventListener("click", () => {
-    const selectedMonth = document.getElementById("monthSelect").value;
-    alert(`You selected month: ${selectedMonth}`);
-  });
+    // Wait for the location suggestions to appear
+    await waitForElement("#Budgets_suggestions .p");
+
+    // Extract locations and months from the DOM
+    const locations = extractLocations();
+    const months = extractMonths();
+
+    // Populate the UI with the extracted data
+    populateLocations(locations);
+    populateMonths(months);
+
+    // Handle submit button click
+    const submitBtn = document.getElementById("submitBtn");
+    submitBtn.addEventListener("click", () => {
+      const selectedMonth = document.getElementById("monthSelect").value;
+      alert(`You selected month: ${selectedMonth}`);
+    });
+  } catch (error) {
+    console.error(error);
+    alert("An error occurred while loading the data.");
+  }
 });
