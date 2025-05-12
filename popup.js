@@ -157,6 +157,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                   }
                   
+                  console.log(`Selecting branch: ${branch} for month: ${month}`);
+                  
                   // Open dropdown
                   dropdownToggle.click();
                   
@@ -177,40 +179,75 @@ document.addEventListener('DOMContentLoaded', function() {
                       // Wait for page to load (monitor the loading element)
                       waitForLoading().then(() => {
                         try {
-                          // Find the column index for the selected month
-                          const monthIndex = findMonthColumnIndex(month);
+                          // Using the direct approach you provided
+                          console.log("Page loaded, getting values");
                           
-                          if (monthIndex === -1) {
-                            reject(`Month "${month}" not found in table headers`);
-                            return;
-                          }
+                          // Get Fee income value directly using the row and month selectors
+                          const feeIncomeValue = getValueForMonthAndRow(month, 3); // 3 for Fee income
+                          console.log(`Fee income value: ${feeIncomeValue}`);
                           
-                          // Get fee income value
-                          const feeIncome = getCellValue("Fee income (0110)", monthIndex);
-                          
-                          // Get funding income value
-                          const fundingIncome = getCellValue("Funding income (0120)", monthIndex);
+                          // Get Funding income value directly using the row and month selectors
+                          const fundingIncomeValue = getValueForMonthAndRow(month, 4); // 4 for Funding income
+                          console.log(`Funding income value: ${fundingIncomeValue}`);
                           
                           // Return results
                           resolve({
                             success: true,
-                            feeIncome: feeIncome,
-                            fundingIncome: fundingIncome
+                            feeIncome: feeIncomeValue,
+                            fundingIncome: fundingIncomeValue
                           });
                         } catch (error) {
+                          console.error("Error extracting data:", error);
                           reject(`Error extracting data: ${error.message}`);
                         }
                       }).catch(error => {
+                        console.error("Loading error:", error);
                         reject(`Timeout waiting for page to load: ${error}`);
                       });
                     } catch (error) {
+                      console.error("Branch selection error:", error);
                       reject(`Error selecting branch: ${error.message}`);
                     }
                   }, 500);
                 } catch (error) {
+                  console.error("General error:", error);
                   reject(`Error: ${error.message}`);
                 }
               });
+            }
+            
+            // Get value for specific month and row index
+            function getValueForMonthAndRow(month, rowIndex) {
+              try {
+                // Get the row for the specified income type
+                const row = document.querySelector(`#ext-gen74 > div:nth-child(${rowIndex}) > table > tbody > tr`);
+                
+                if (!row) {
+                  throw new Error(`Row not found for index: ${rowIndex}`);
+                }
+                
+                // Find the cell for the specified month
+                const cell = row.querySelector(`[id="${month}"]`);
+                
+                if (!cell) {
+                  throw new Error(`Cell not found for month: ${month}`);
+                }
+                
+                // Check if it's an editable cell with an input
+                const input = cell.querySelector('input');
+                
+                if (input) {
+                  // Return the input value
+                  return input.value;
+                } else {
+                  // Return the text content of the cell
+                  const inner = cell.querySelector('.x-grid3-cell-inner');
+                  return inner ? inner.textContent.trim() : "N/A";
+                }
+              } catch (error) {
+                console.error(`Error getting value for ${month} in row ${rowIndex}:`, error);
+                return "Error: " + error.message;
+              }
             }
             
             // Wait for the loading indicator to disappear
@@ -238,51 +275,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   }
                 }, 200);
               });
-            }
-            
-            // Find the column index for a given month
-            function findMonthColumnIndex(month) {
-              const headers = document.querySelectorAll(".x-grid3-header .x-grid3-hd-inner");
-              
-              for (let i = 0; i < headers.length; i++) {
-                if (headers[i].textContent.trim() === month) {
-                  return i;
-                }
-              }
-              
-              return -1; // Month not found
-            }
-            
-            // Get cell value for a specific row label and column index
-            function getCellValue(rowLabel, columnIndex) {
-              // Find the row with the given label
-              const rows = document.querySelectorAll(".x-grid3-row");
-              let targetRow = null;
-              let rowIndex = -1;
-              
-              for (let i = 0; i < rows.length; i++) {
-                const labelCell = rows[i].querySelector(".x-grid3-cell-inner");
-                if (labelCell && labelCell.textContent.trim() === rowLabel) {
-                  targetRow = rows[i];
-                  rowIndex = i;
-                  break;
-                }
-              }
-              
-              if (!targetRow) {
-                throw new Error(`Row "${rowLabel}" not found`);
-              }
-              
-              // Find the value cell in the corresponding column
-              // We need to be careful with the column indexing as it's split between locked and scrollable sections
-              const valueCell = document.querySelector(`.x-grid3-body:not(.x-grid3-locked) .x-grid3-row:nth-child(${rowIndex + 1}) .x-grid3-cell:nth-child(${columnIndex})`);
-              
-              if (!valueCell) {
-                throw new Error(`Value cell not found for ${rowLabel} at column ${columnIndex}`);
-              }
-              
-              const innerCell = valueCell.querySelector(".x-grid3-cell-inner");
-              return innerCell ? innerCell.textContent.trim() : "N/A";
             }
           },
           args: [selectedBranch, selectedMonth]
