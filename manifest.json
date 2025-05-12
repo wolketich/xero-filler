@@ -1,12 +1,21 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Xero Budget Manager",
   "version": "1.0",
   "description": "Manage budgets and select months in Xero Budget Manager.",
-  "permissions": ["scripting"],
-  "host_permissions": ["<all_urls>"],
-  "action": {
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "<all_urls>"
+  ],
+  "browser_action": {
     "default_popup": "popup.html",
-    "default_title": "Open Budget Manager"
-  }
+    "default_title": "Xero Budget Manager"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.xero.com/*"],
+      "js": ["content.js"]
+    }
+  ]
 }
