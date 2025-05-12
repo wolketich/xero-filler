@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Budget Manager</title>
+  <title>Xero Budget Manager</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -17,30 +17,6 @@
       font-size: 1.5em;
       margin-bottom: 20px;
     }
-    .budget-list {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      background-color: #fff;
-      padding: 10px;
-      margin-bottom: 20px;
-    }
-    .budget-item {
-      padding: 8px;
-      border-bottom: 1px solid #ddd;
-      cursor: pointer;
-    }
-    .budget-item:last-child {
-      border-bottom: none;
-    }
-    .budget-item:hover {
-      background-color: #f0f0f0;
-    }
-    .budget-item.selected {
-      background-color: #e0f0ff;
-      font-weight: bold;
-    }
     .form-group {
       margin-bottom: 15px;
     }
@@ -49,8 +25,7 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    .form-group select,
-    .form-group input[type="text"] {
+    .form-group select {
       width: 100%;
       padding: 8px;
       box-sizing: border-box;
@@ -70,12 +45,6 @@
     }
     .btn:hover {
       background-color: #0056b3;
-    }
-    .btn-load {
-      background-color: #28a745;
-    }
-    .btn-load:hover {
-      background-color: #218838;
     }
     .status-message {
       margin-top: 10px;
@@ -98,19 +67,41 @@
       background-color: #d4edda;
       border: 1px solid #c3e6cb;
     }
+    .result-container {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #fff;
+    }
+    .result-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+    }
+    .result-item:last-child {
+      border-bottom: none;
+    }
+    .result-label {
+      font-weight: bold;
+    }
+    .result-value {
+      color: #28a745;
+    }
   </style>
 </head>
 <body>
   <h1>Xero Budget Manager</h1>
   
-  <button id="loadFieldsBtn" class="btn btn-load">Load Budgets and Months</button>
+  <button id="loadFieldsBtn" class="btn">Load Budgets and Months</button>
   
   <div id="statusMessage" class="status-message" style="display: none;"></div>
   
   <div id="dataContainer" style="display: none;">
     <div class="form-group">
-      <label for="budgetSelect">Select Budget</label>
-      <select id="budgetSelect"></select>
+      <label for="branchSelect">Select Branch</label>
+      <select id="branchSelect"></select>
     </div>
     
     <div class="form-group">
@@ -118,7 +109,27 @@
       <select id="monthSelect"></select>
     </div>
     
-    <button id="submitBtn" class="btn">Submit</button>
+    <button id="submitBtn" class="btn">Get Income Data</button>
+  </div>
+  
+  <div id="resultContainer" class="result-container" style="display: none;">
+    <h2 style="margin-top: 0;">Income Results</h2>
+    <div class="result-item">
+      <span class="result-label">Branch:</span>
+      <span id="resultBranch" class="result-value">-</span>
+    </div>
+    <div class="result-item">
+      <span class="result-label">Month:</span>
+      <span id="resultMonth" class="result-value">-</span>
+    </div>
+    <div class="result-item">
+      <span class="result-label">Fee Income:</span>
+      <span id="resultFee" class="result-value">-</span>
+    </div>
+    <div class="result-item">
+      <span class="result-label">Funding Income:</span>
+      <span id="resultFunding" class="result-value">-</span>
+    </div>
   </div>
 
   <script src="popup.js"></script>
