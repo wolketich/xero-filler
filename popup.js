@@ -1,74 +1,54 @@
+// Dynamically extract budget names from the dropdown menu
+function extractBudgets() {
+  const budgetSuggestions = document.querySelectorAll("#Budgets_suggestions .p");
+  return Array.from(budgetSuggestions).map((el) => el.textContent.trim());
+}
 
-// Budget data from the dropdown
-const budgetData = [
-  "+ Add new budget",
-  "Overall Budget",
-  "Barnhall Budget",
-  "Barton Drive Budget",
-  "Beech Park Budget",
-  "Blanchardstown Budget",
-  "Bray Budget",
-  "Broomhall Budget",
-  "Captains Hill Budget",
-  "Donabate Budget",
-  "Greenlane Budget",
-  "Greystones Budget",
-  "Head Office Budget",
-  "Kinsealy Budget",
-  "Kirvin Hill Budget",
-  "Ledwill Park Budget",
-  "Maynooth Budget",
-  "Merrymeeting Budget",
-  "Newbridge Budget",
-  "Northwood Budget",
-  "Swords Budget",
-  "Taylors Hill Budget",
-  "Westfield Budget",
-];
+// Dynamically extract months from the table header
+function extractMonths() {
+  const monthHeaders = document.querySelectorAll(".x-grid3-header .x-grid3-hd");
+  return Array.from(monthHeaders).map((el) => el.textContent.trim());
+}
 
-// Month data from the table columns
-const monthData = [
-  "Feb-25",
-  "Mar-25",
-  "Apr-25",
-  "May-25",
-  "Jun-25",
-  "Jul-25",
-  "Aug-25",
-  "Sep-25",
-  "Oct-25",
-  "Nov-25",
-  "Dec-25",
-  "Jan-26",
-  "Feb-26",
-  "Mar-26",
-  "Apr-26",
-];
-
-// Populate the budget list
-const budgetListDiv = document.getElementById("budgetList");
-budgetData.forEach((budget) => {
-  const budgetItem = document.createElement("div");
-  budgetItem.className = "budget-item";
-  budgetItem.textContent = budget;
-  budgetItem.addEventListener("click", () => {
-    alert(`You selected: ${budget}`);
+// Populate the budget list dynamically
+function populateBudgets(budgets) {
+  const budgetListDiv = document.getElementById("budgetList");
+  budgets.forEach((budget) => {
+    const budgetItem = document.createElement("div");
+    budgetItem.className = "budget-item";
+    budgetItem.textContent = budget;
+    budgetItem.addEventListener("click", () => {
+      alert(`You selected: ${budget}`);
+    });
+    budgetListDiv.appendChild(budgetItem);
   });
-  budgetListDiv.appendChild(budgetItem);
-});
+}
 
-// Populate the month dropdown
-const monthSelect = document.getElementById("monthSelect");
-monthData.forEach((month) => {
-  const option = document.createElement("option");
-  option.value = month;
-  option.textContent = month;
-  monthSelect.appendChild(option);
-});
+// Populate the month dropdown dynamically
+function populateMonths(months) {
+  const monthSelect = document.getElementById("monthSelect");
+  months.forEach((month) => {
+    const option = document.createElement("option");
+    option.value = month;
+    option.textContent = month;
+    monthSelect.appendChild(option);
+  });
+}
 
-// Handle submit button click
-const submitBtn = document.getElementById("submitBtn");
-submitBtn.addEventListener("click", () => {
-  const selectedMonth = monthSelect.value;
-  alert(`You selected month: ${selectedMonth}`);
+// Main function to initialize the popup
+document.addEventListener("DOMContentLoaded", () => {
+  // Extract budgets and months dynamically from the webpage
+  const budgets = extractBudgets();
+  const months = extractMonths();
+
+  // Populate the popup UI with the extracted data
+  populateBudgets(budgets);
+  populateMonths(months);
+
+  // Handle submit button click
+  const submitBtn = document.getElementById("submitBtn");
+  submitBtn.addEventListener("click", () => {
+    const selectedMonth = document.getElementById("monthSelect").value;
+    alert(`You selected month: ${selectedMonth}`);
+  });
 });
