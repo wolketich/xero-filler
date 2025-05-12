@@ -27,31 +27,47 @@ document.addEventListener('DOMContentLoaded', function() {
       // Execute content script in the active tab using the scripting API
       chrome.scripting.executeScript({
         target: { tabId: tabs[0].id },
-        function: () => {
+        function: async () => {
           // This function will be injected into the page and executed there
-          return {
-            branches: extractBranches(),
-            months: extractMonths()
-          };
+          try {
+            // Extract branches (wait for the promise to resolve)
+            const branches = await extractBranches();
+            
+            // Extract months
+            const months = extractMonths();
+            
+            return { branches, months, success: true };
+          } catch (error) {
+            return { 
+              success: false, 
+              error: error.message 
+            };
+          }
           
-          // Extract branches function
-          function extractBranches() {
+          // Extract branches function - returns a Promise
+          async function extractBranches() {
             // Open the dropdown to ensure options are visible
             const dropdownToggle = document.querySelector("#Budgets_toggle");
-            if (dropdownToggle) {
-              dropdownToggle.click();
+            if (!dropdownToggle) {
+              throw new Error("Budget dropdown not found");
             }
             
-            // Wait briefly and get the branches
-            return new Promise(resolve => {
+            dropdownToggle.click();
+            
+            // Wait briefly for the dropdown to appear
+            return new Promise((resolve, reject) => {
               setTimeout(() => {
-                const branchElements = document.querySelectorAll("#Budgets_suggestions .p");
-                const branches = Array.from(branchElements).map(el => el.textContent.trim());
-                
-                // Close dropdown
-                dropdownToggle.click();
-                
-                resolve(branches);
+                try {
+                  const branchElements = document.querySelectorAll("#Budgets_suggestions .p");
+                  const branches = Array.from(branchElements).map(el => el.textContent.trim());
+                  
+                  // Close dropdown
+                  dropdownToggle.click();
+                  
+                  resolve(branches);
+                } catch (error) {
+                  reject(error);
+                }
               }, 500);
             });
           }
@@ -66,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }).then(results => {
         // Handle the results from the injected script
-        if (results && results[0] && results[0].result) {
+        if (results && results[0] && results[0].result && results[0].result.success) {
           const data = results[0].result;
           
           // Populate branch dropdown
@@ -91,7 +107,10 @@ document.addEventListener('DOMContentLoaded', function() {
           dataContainer.style.display = 'block';
           showStatus('Data loaded successfully!', 'success');
         } else {
-          showStatus('Failed to load data from Xero. Please try again.', 'error');
+          const errorMsg = results && results[0] && results[0].result && results[0].result.error
+            ? results[0].result.error
+            : 'Failed to load data from Xero.';
+          showStatus('Error: ' + errorMsg, 'error');
         }
       }).catch(error => {
         showStatus('Error: ' + error.message, 'error');
@@ -112,12 +131,21 @@ document.addEventListener('DOMContentLoaded', function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
-          function: (branch, month) => {
+          function: async (branch, month) => {
             // This function will be injected into the page and executed there
-            return getIncomeData(branch, month);
+            try {
+              // Get income data (await the promise)
+              const data = await getIncomeData(branch, month);
+              return data;
+            } catch (error) {
+              return {
+                success: false,
+                error: error.message
+              };
+            }
             
             // Get income data for specific branch and month
-            function getIncomeData(branch, month) {
+            async function getIncomeData(branch, month) {
               return new Promise((resolve, reject) => {
                 try {
                   // Step 1: Select the branch from dropdown
