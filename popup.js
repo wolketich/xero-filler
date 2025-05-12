@@ -179,23 +179,29 @@ document.addEventListener('DOMContentLoaded', function() {
                       // Wait for page to load (monitor the loading element)
                       waitForLoading().then(() => {
                         try {
-                          // Using the direct approach you provided
                           console.log("Page loaded, getting values");
                           
-                          // Get Fee income value directly using the row and month selectors
-                          const feeIncomeValue = getValueForMonthAndRow(month, 3); // 3 for Fee income
-                          console.log(`Fee income value: ${feeIncomeValue}`);
-                          
-                          // Get Funding income value directly using the row and month selectors
-                          const fundingIncomeValue = getValueForMonthAndRow(month, 4); // 4 for Funding income
-                          console.log(`Funding income value: ${fundingIncomeValue}`);
-                          
-                          // Return results
-                          resolve({
-                            success: true,
-                            feeIncome: feeIncomeValue,
-                            fundingIncome: fundingIncomeValue
-                          });
+                          // Wait a bit more to ensure all elements are rendered
+                          setTimeout(() => {
+                            try {
+                              // Get values for fee income and funding income
+                              const feeIncome = getValueByLabelAndMonth("Fee income (0110)", month);
+                              console.log(`Fee income value: ${feeIncome}`);
+                              
+                              const fundingIncome = getValueByLabelAndMonth("Funding income (0120)", month);
+                              console.log(`Funding income value: ${fundingIncome}`);
+                              
+                              // Return results
+                              resolve({
+                                success: true,
+                                feeIncome: feeIncome,
+                                fundingIncome: fundingIncome
+                              });
+                            } catch (error) {
+                              console.error("Error getting values:", error);
+                              reject(`Error getting values: ${error.message}`);
+                            }
+                          }, 500); // Extra delay to ensure table is fully loaded
                         } catch (error) {
                           console.error("Error extracting data:", error);
                           reject(`Error extracting data: ${error.message}`);
@@ -216,37 +222,52 @@ document.addEventListener('DOMContentLoaded', function() {
               });
             }
             
-            // Get value for specific month and row index
-            function getValueForMonthAndRow(month, rowIndex) {
-              try {
-                // Get the row for the specified income type
-                const row = document.querySelector(`#ext-gen74 > div:nth-child(${rowIndex}) > table > tbody > tr`);
-                
-                if (!row) {
-                  throw new Error(`Row not found for index: ${rowIndex}`);
+            // Get value by finding the row with the label and then the cell for the month
+            function getValueByLabelAndMonth(label, month) {
+              console.log(`Looking for label: "${label}" and month: "${month}"`);
+              
+              // Step 1: Find all row cells that might contain our label
+              const allLabelCells = document.querySelectorAll(".x-grid3-cell-inner");
+              console.log(`Found ${allLabelCells.length} potential label cells`);
+              
+              // Step 2: Find the row that contains our target label
+              let targetRow = null;
+              for (const cell of allLabelCells) {
+                if (cell.textContent.trim() === label) {
+                  console.log(`Found label: ${label}`);
+                  // Go up the DOM to find the row
+                  targetRow = cell.closest(".x-grid3-row");
+                  break;
                 }
-                
-                // Find the cell for the specified month
-                const cell = row.querySelector(`[id="${month}"]`);
-                
-                if (!cell) {
-                  throw new Error(`Cell not found for month: ${month}`);
-                }
-                
-                // Check if it's an editable cell with an input
-                const input = cell.querySelector('input');
-                
-                if (input) {
-                  // Return the input value
-                  return input.value;
-                } else {
-                  // Return the text content of the cell
-                  const inner = cell.querySelector('.x-grid3-cell-inner');
-                  return inner ? inner.textContent.trim() : "N/A";
-                }
-              } catch (error) {
-                console.error(`Error getting value for ${month} in row ${rowIndex}:`, error);
-                return "Error: " + error.message;
+              }
+              
+              if (!targetRow) {
+                console.error(`Row not found for label: ${label}`);
+                return `Error: Row not found for label: ${label}`;
+              }
+              
+              // Step 3: Find the cell in this row that has the month ID or class
+              const monthCell = targetRow.querySelector(`[id="${month}"]`) || 
+                               targetRow.querySelector(`.x-grid3-td-${month}`);
+              
+              if (!monthCell) {
+                console.error(`Cell not found for month: ${month}`);
+                return `Error: Cell not found for month: ${month}`;
+              }
+              
+              console.log(`Found cell for month: ${month}`, monthCell);
+              
+              // Step 4: Extract the value (either from input or from text)
+              const input = monthCell.querySelector('input');
+              
+              if (input) {
+                console.log(`Found input with value: ${input.value}`);
+                return input.value;
+              } else {
+                const innerCell = monthCell.querySelector('.x-grid3-cell-inner');
+                const value = innerCell ? innerCell.textContent.trim() : "N/A";
+                console.log(`Found text value: ${value}`);
+                return value;
               }
             }
             
