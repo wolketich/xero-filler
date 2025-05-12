@@ -1,5 +1,5 @@
 // Utility function to wait for an element to appear in the DOM
-function waitForElement(selector, timeout = 5000) {
+function waitForElement(selector, timeout = 10000) {
   return new Promise((resolve, reject) => {
     const interval = 100; // Check every 100ms
     const startTime = Date.now();
