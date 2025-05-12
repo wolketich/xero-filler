@@ -184,12 +184,24 @@ document.addEventListener('DOMContentLoaded', function() {
                           // Wait a bit more to ensure all elements are rendered
                           setTimeout(() => {
                             try {
-                              // Get values for fee income and funding income
-                              const feeIncome = getValueByLabelAndMonth("Fee income (0110)", month);
-                              console.log(`Fee income value: ${feeIncome}`);
+                              // First, let's examine the page structure
+                              console.log("Analyzing page structure...");
                               
-                              const fundingIncome = getValueByLabelAndMonth("Funding income (0120)", month);
-                              console.log(`Funding income value: ${fundingIncome}`);
+                              // Find all month headers to determine column index
+                              const headerCells = document.querySelectorAll(".x-grid3-hd-inner");
+                              const columnIndex = Array.from(headerCells).findIndex(cell => cell.textContent.trim() === month);
+                              
+                              if (columnIndex === -1) {
+                                console.error(`Month column not found: ${month}`);
+                                reject(`Month column not found: ${month}`);
+                                return;
+                              }
+                              
+                              console.log(`Found month ${month} at column index: ${columnIndex}`);
+                              
+                              // Get values using direct DOM traversal approach
+                              const feeIncome = getValueForIncomeType("Fee income (0110)", month, columnIndex);
+                              const fundingIncome = getValueForIncomeType("Funding income (0120)", month, columnIndex);
                               
                               // Return results
                               resolve({
@@ -201,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
                               console.error("Error getting values:", error);
                               reject(`Error getting values: ${error.message}`);
                             }
-                          }, 500); // Extra delay to ensure table is fully loaded
+                          }, 1000); // Extra delay to ensure table is fully loaded
                         } catch (error) {
                           console.error("Error extracting data:", error);
                           reject(`Error extracting data: ${error.message}`);
@@ -222,57 +234,127 @@ document.addEventListener('DOMContentLoaded', function() {
               });
             }
             
-            // Get value by finding the row with the label and then the cell for the month
-            function getValueByLabelAndMonth(label, month) {
-              console.log(`Looking for label: "${label}" and month: "${month}"`);
-              
-              // Step 1: Find all row cells that might contain our label
-              const allLabelCells = document.querySelectorAll(".x-grid3-cell-inner");
-              console.log(`Found ${allLabelCells.length} potential label cells`);
-              
-              // Step 2: Find the row that contains our target label
-              let targetRow = null;
-              for (const cell of allLabelCells) {
-                if (cell.textContent.trim() === label) {
-                  console.log(`Found label: ${label}`);
-                  // Go up the DOM to find the row
-                  targetRow = cell.closest(".x-grid3-row");
-                  break;
+            // Get value for a specific income type and month using column index
+            function getValueForIncomeType(incomeType, month, columnIndex) {
+              try {
+                // First, get all rows in the grid
+                const rowsWithLabels = document.querySelectorAll(".x-grid3-row");
+                console.log(`Found ${rowsWithLabels.length} rows in grid`);
+                
+                // Find row index with matching income type
+                let rowIndex = -1;
+                let i = 0;
+                
+                for (const row of rowsWithLabels) {
+                  const labelCell = row.querySelector(".x-grid3-cell-inner");
+                  if (labelCell && labelCell.textContent.trim() === incomeType) {
+                    rowIndex = i;
+                    console.log(`Found "${incomeType}" at row index: ${rowIndex}`);
+                    break;
+                  }
+                  i++;
                 }
-              }
-              
-              if (!targetRow) {
-                console.error(`Row not found for label: ${label}`);
-                return `Error: Row not found for label: ${label}`;
-              }
-              
-              // Step 3: Find the cell in this row that has the month ID or class
-              const monthCell = targetRow.querySelector(`[id="${month}"]`) || 
-                               targetRow.querySelector(`.x-grid3-td-${month}`);
-              
-              if (!monthCell) {
-                console.error(`Cell not found for month: ${month}`);
-                return `Error: Cell not found for month: ${month}`;
-              }
-              
-              console.log(`Found cell for month: ${month}`, monthCell);
-              
-              // Step 4: Extract the value (either from input or from text)
-              const input = monthCell.querySelector('input');
-              
-              if (input) {
-                console.log(`Found input with value: ${input.value}`);
-                return input.value;
-              } else {
-                const innerCell = monthCell.querySelector('.x-grid3-cell-inner');
-                const value = innerCell ? innerCell.textContent.trim() : "N/A";
-                console.log(`Found text value: ${value}`);
-                return value;
+                
+                if (rowIndex === -1) {
+                  console.error(`Row not found for income type: ${incomeType}`);
+                  return `Error: Row not found for income type: ${incomeType}`;
+                }
+                
+                // Method 1: Try direct selector using month ID attribute
+                console.log(`Looking for direct cell with id or class for ${month}...`);
+                const directCell = document.querySelector(
+                  `.x-grid3-row:nth-child(${rowIndex + 1}) [id="${month}"], ` +
+                  `.x-grid3-row:nth-child(${rowIndex + 1}) .x-grid3-td-${month}`
+                );
+                
+                if (directCell) {
+                  console.log("Found cell by direct selector");
+                  const input = directCell.querySelector('input');
+                  
+                  if (input) {
+                    return input.value;
+                  } else {
+                    const innerCell = directCell.querySelector('.x-grid3-cell-inner');
+                    return innerCell ? innerCell.textContent.trim() : "N/A";
+                  }
+                }
+                
+                // Method 2: Use debugging to find the value (more flexible approach)
+                console.log("Direct selector failed. Using detailed search...");
+                console.log(`Getting value for ${incomeType} (${month}) - Row ${rowIndex}, Column ${columnIndex}`);
+                
+                // Debug the specific row
+                const targetRow = rowsWithLabels[rowIndex];
+                console.log("Target row HTML:", targetRow.outerHTML);
+                
+                // Look for any month cell in the row
+                const allMonthCells = Array.from(targetRow.querySelectorAll('td'))
+                  .filter(td => td.id && td.id.match(/[A-Za-z]+-\d+/));
+                  
+                console.log(`Found ${allMonthCells.length} month cells in this row`);
+                allMonthCells.forEach((cell, idx) => {
+                  console.log(`Month cell ${idx}: id=${cell.id}, class=${cell.className}`);
+                });
+                
+                // Find the scrollable grid section that contains month values
+                const scrollableGrids = document.querySelectorAll('.x-grid3-body:not(.x-grid3-locked)');
+                console.log(`Found ${scrollableGrids.length} scrollable grid sections`);
+                
+                if (scrollableGrids.length > 0) {
+                  const scrollableRows = scrollableGrids[0].querySelectorAll('.x-grid3-row');
+                  console.log(`Found ${scrollableRows.length} rows in scrollable section`);
+                  
+                  if (rowIndex < scrollableRows.length) {
+                    const scrollableRow = scrollableRows[rowIndex];
+                    console.log("Scrollable row HTML:", scrollableRow.outerHTML);
+                    
+                    // Get all cells in this scrollable row
+                    const cells = scrollableRow.querySelectorAll('td');
+                    console.log(`Found ${cells.length} cells in scrollable row`);
+                    
+                    // Try to find the cell with the month ID
+                    const monthCell = Array.from(cells).find(c => c.id === month || c.className.includes(`x-grid3-td-${month}`));
+                    
+                    if (monthCell) {
+                      console.log("Found month cell by ID or class:", monthCell.outerHTML);
+                      const input = monthCell.querySelector('input');
+                      
+                      if (input) {
+                        return input.value;
+                      } else {
+                        const innerCell = monthCell.querySelector('.x-grid3-cell-inner');
+                        return innerCell ? innerCell.textContent.trim() : "N/A";
+                      }
+                    } else if (columnIndex < cells.length) {
+                      // Fall back to using column index
+                      const cell = cells[columnIndex];
+                      console.log(`Using column index (${columnIndex}) to find cell:`, cell.outerHTML);
+                      
+                      const input = cell.querySelector('input');
+                      if (input) {
+                        return input.value;
+                      } else {
+                        const innerCell = cell.querySelector('.x-grid3-cell-inner');
+                        return innerCell ? innerCell.textContent.trim() : "N/A";
+                      }
+                    } else {
+                      return `Error: Column index ${columnIndex} out of range (cells: ${cells.length})`;
+                    }
+                  } else {
+                    return `Error: Row index ${rowIndex} out of range (rows: ${scrollableRows.length})`;
+                  }
+                } else {
+                  return "Error: Scrollable grid section not found";
+                }
+                
+              } catch (error) {
+                console.error(`Error getting value for ${incomeType} (${month}):`, error);
+                return `Error: ${error.message}`;
               }
             }
             
             // Wait for the loading indicator to disappear
-            function waitForLoading(timeout = 10000) {
+            function waitForLoading(timeout = 20000) {
               return new Promise((resolve, reject) => {
                 const startTime = Date.now();
                 
@@ -289,7 +371,8 @@ document.addEventListener('DOMContentLoaded', function() {
                   
                   if (loadingElement && loadingElement.style.display === "none") {
                     clearInterval(checkInterval);
-                    resolve();
+                    // Add extra delay to ensure DOM is fully updated
+                    setTimeout(resolve, 500);
                   } else if (Date.now() - startTime > timeout) {
                     clearInterval(checkInterval);
                     reject("Loading timeout exceeded");
